@@ -1,27 +1,36 @@
 "use server";
+
 import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-export const setUserRole = async (formData) => {
+/**
+ * Sets the user's role and related information
+ */
+export async function setUserRole(formData) {
   const { userId } = await auth();
-  if (!userId) throw new Error("User not authenticated");
-  //find user in Database
 
-  const user = await db.User.findUnique({
-    where: {
-      clerkUserId: userId,
-    },
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
+  // Find user in our database
+  const user = await db.user.findUnique({
+    where: { clerkUserId: userId },
   });
-  if (!user) throw new Error("User not found");
+
+  if (!user) throw new Error("User not found in database");
 
   const role = formData.get("role");
+
   if (!role || !["PATIENT", "DOCTOR"].includes(role)) {
-    throw new Error("Invalid role selected");
+    throw new Error("Invalid role selection");
   }
+
   try {
+    // For patient role - simple update
     if (role === "PATIENT") {
-      await db.User.update({
+      await db.user.update({
         where: {
           clerkUserId: userId,
         },
@@ -29,53 +38,66 @@ export const setUserRole = async (formData) => {
           role: "PATIENT",
         },
       });
+
       revalidatePath("/");
       return { success: true, redirect: "/doctors" };
     }
 
+    // For doctor role - need additional information
     if (role === "DOCTOR") {
-      const speciality = formData.get("speciality");
+      const specialty = formData.get("specialty");
       const experience = parseInt(formData.get("experience"), 10);
-      const credientUrl = formData.get("credientUrl");
+      const credentialUrl = formData.get("credentialUrl");
       const description = formData.get("description");
-      if (!speciality || !experience || !credientUrl || !description) {
-        throw new Error("All fields are required for Doctor role");
+
+      // Validate inputs
+      if (!specialty || !experience || !credentialUrl || !description) {
+        throw new Error("All fields are required");
       }
+
       await db.User.update({
         where: {
           clerkUserId: userId,
         },
         data: {
           role: "DOCTOR",
-          speciality,
+          specialty,
           experience,
-          credientUrl,
+          credentialUrl,
           description,
           verificationStatus: "PENDING",
         },
       });
-      revalidatePath("/");
-      return { success: true, redirect: "/doctor/verifiaction" };
-    }
-  } catch (e) {
-    console.log(e.message);
-    throw new Error("Failed to set user role", e.message);
-  }
-};
 
-export const getCurrentUser = async () => {
+      revalidatePath("/");
+      return { success: true, redirect: "/doctor/verification" };
+    }
+  } catch (error) {
+    console.error("Failed to set user role:", error);
+    throw new Error(`Failed to update user profile: ${error.message}`);
+  }
+}
+
+/**
+ * Gets the current user's complete profile information
+ */
+export async function getCurrentUser() {
   const { userId } = await auth();
-  if (!userId) throw new Error("User not authenticated");
+
+  if (!userId) {
+    return null;
+  }
 
   try {
-    const user = await db.User.findUnique({
+    const user = await db.user.findUnique({
       where: {
         clerkUserId: userId,
       },
     });
-    return user || null;
+
+    return user;
   } catch (error) {
-    console.error("Error fetching user:", error);
-    throw new Error("Failed to fetch user");
+    console.error("Failed to get user information:", error);
+    return null;
   }
-};
+}
