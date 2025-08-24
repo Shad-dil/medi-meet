@@ -68,6 +68,7 @@ export const updateDoctorStatus = async (formData) => {
   if (!isAdmin) throw new Error("Unauthorized access");
   const doctorId = formData.get("doctorId");
   const status = formData.get("status");
+  console.log(doctorId, status);
   if (!doctorId || !["VERIFIED", "REJECTED"].includes(status)) {
     throw new Error("Invalid doctor ID or status");
   }
@@ -87,29 +88,33 @@ export const updateDoctorStatus = async (formData) => {
     throw new Error("Error updating doctor status");
   }
 };
-export const suspendDoctor = async (formData) => {
+export async function updateDoctorActiveStatus(formData) {
   const isAdmin = await verifyAdmin();
-  if (!isAdmin) throw new Error("Unauthorized access");
+  if (!isAdmin) throw new Error("Unauthorized");
+
   const doctorId = formData.get("doctorId");
   const suspend = formData.get("suspend") === "true";
-  const status = suspend ? "PENDING" : "VERIFIED";
 
-  if (!doctorId || !["VERIFIED", "PENDING"].includes(status)) {
-    throw new Error("Invalid doctor ID or status");
+  if (!doctorId) {
+    throw new Error("Doctor ID is required");
   }
+
   try {
+    const status = suspend ? "PENDING" : "VERIFIED";
+
     await db.User.update({
       where: {
-        clerkUserId: doctorId,
+        id: doctorId,
       },
       data: {
         verificationStatus: status,
       },
     });
+
     revalidatePath("/admin");
     return { success: true };
   } catch (error) {
-    console.error("Error updating doctor status:", error);
-    throw new Error("Error updating doctor status");
+    console.error("Failed to update doctor active status:", error);
+    throw new Error(`Failed to update doctor status: ${error.message}`);
   }
-};
+}

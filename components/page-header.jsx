@@ -10,7 +10,7 @@ const PageHeader = ({
   backLabel = "Back to Home",
 }) => {
   return (
-    <div className="flex flex-col justify-between  mb-8 mt-6">
+    <div className="flex flex-col justify-between  mb-8 mt-10">
       <Link href={backLink} className="mb-4">
         <Button
           variant={"outline"}
