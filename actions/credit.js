@@ -4,6 +4,7 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
+import { success } from "zod";
 
 const PLAN_CREDITS = {
   free_user: 0,
@@ -81,5 +82,65 @@ export async function checkAndAllocateCredits(user) {
   } catch (e) {
     console.log(e.message);
     return null;
+  }
+}
+
+export async function deductCreditForAppointment(userId, doctorId) {
+  try {
+    const user = await db.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+    const doctor = await db.user.findUnique({
+      where: {
+        id: doctorId,
+      },
+    });
+
+    if (user.credits < APPOINTMENT_CREDIT_COST) {
+      throw new Error("insufficient Credits for Booking");
+    }
+    if (!doctor) {
+      throw new Error("doctor not found");
+    }
+    const result = await db.$transaction(async (tx) => {
+      await tx.CreditTransaction.create({
+        data: {
+          userId: user.id,
+          amount: -APPOINTMENT_CREDIT_COST,
+          type: "  APPOINTMENT_DEDUCTION ",
+          description: `Credits deducted for appointment with Dr ${doctor.name}`,
+        },
+      });
+
+      const updatedUser = await tx.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          credits: {
+            decrement: APPOINTMENT_CREDIT_COST,
+          },
+        },
+      });
+
+      await tx.user.update({
+        where: {
+          id: doctor.id,
+        },
+        data: {
+          credits: {
+            increment: APPOINTMENT_CREDIT_COST,
+          },
+        },
+      });
+
+      return { updatedUser };
+    });
+
+    return { success: true, user: result };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 }
