@@ -24,7 +24,7 @@ const DoctorPage = async () => {
   return (
     <div>
       <Tabs
-        defaultValue="pending"
+        defaultValue="appointment"
         className="grid grid-cols-2 md:grid-cols-4 gap-6"
       >
         <TabsList
