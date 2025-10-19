@@ -255,14 +255,14 @@ export async function cancelAppointment(formData) {
 }
 
 export const addAppointmentNote = async (formData) => {
-  const { user } = await auth();
-  if (!user) {
+  const { userId } = await auth();
+  if (!userId) {
     throw new Error("Unauthorized");
   }
   try {
     const doctor = await db.user.findUnique({
       where: {
-        clerkUserId: user.id,
+        clerkUserId: userId,
         role: "DOCTOR",
       },
     });
