@@ -109,8 +109,8 @@ export async function deductCreditForAppointment(userId, doctorId) {
         data: {
           userId: user.id,
           amount: -APPOINTMENT_CREDIT_COST,
-          type: "  APPOINTMENT_DEDUCTION ",
-          description: `Credits deducted for appointment with Dr ${doctor.name}`,
+          type: "APPOINTMENT_DEDUCTION",
+          // description: `Credits deducted for appointment with Dr ${doctor.name}`,
         },
       });
 

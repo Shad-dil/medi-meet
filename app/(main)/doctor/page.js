@@ -4,8 +4,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
 import { AlertCircle, Calendar, Clock, User } from "lucide-react";
 import { redirect } from "next/navigation";
-import AppointmentSetting from "./_components/appointment-setting";
 import AvailabilitySetting from "./_components/availiablity-setting";
+import DoctorAppointmentList from "./_components/appointment-list";
 
 const DoctorPage = async () => {
   const user = await getCurrentUser();
@@ -53,7 +53,9 @@ const DoctorPage = async () => {
         </TabsList>
         <div className="md:col-span-3">
           <TabsContent value="appointment" className="border-none p-0">
-            <AppointmentSetting slots={appointmentsData || []} />
+            <DoctorAppointmentList
+              appointments={appointmentsData.appointments || []}
+            />
           </TabsContent>
           <TabsContent value="availabilty" className="border-none p-0">
             <AvailabilitySetting slots={availabilityData.slots || []} />
