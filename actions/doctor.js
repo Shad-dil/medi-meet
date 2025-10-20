@@ -156,12 +156,13 @@ export async function getDoctorAppointments() {
     throw new Error("Failed to fetch appointments " + error.message);
   }
 }
-
 export async function cancelAppointment(formData) {
   const { userId } = await auth();
+
   if (!userId) {
     throw new Error("Unauthorized");
   }
+
   try {
     const user = await db.user.findUnique({
       where: {
@@ -172,12 +173,15 @@ export async function cancelAppointment(formData) {
     if (!user) {
       throw new Error("User not found");
     }
+
     const appointmentId = formData.get("appointmentId");
+
     if (!appointmentId) {
       throw new Error("Appointment ID is required");
     }
 
-    const appointments = await db.appointment.findUnique({
+    // Find the appointment with both patient and doctor details
+    const appointment = await db.appointment.findUnique({
       where: {
         id: appointmentId,
       },
@@ -187,63 +191,75 @@ export async function cancelAppointment(formData) {
       },
     });
 
-    if (!appointments) {
+    if (!appointment) {
       throw new Error("Appointment not found");
     }
-    if (
-      appointments.doctorId !== user.id &&
-      appointments.patientId !== user.id
-    ) {
+
+    // Verify the user is either the doctor or the patient for this appointment
+    if (appointment.doctorId !== user.id && appointment.patientId !== user.id) {
       throw new Error("You are not authorized to cancel this appointment");
     }
 
+    // Perform cancellation in a transaction
     await db.$transaction(async (tx) => {
+      // Update the appointment status to CANCELLED
       await tx.appointment.update({
-        where: { id: appointmentId },
-        data: { status: "CANCELLED" },
-      });
-
-      await tx.creditTransaction.create({
+        where: {
+          id: appointmentId,
+        },
         data: {
-          userId: appointments.patientId,
-          amount: appointments.fee,
-          type: "APPOINTMENTAPPOINTMENT_DEDUCTION",
-          // description: `Refund for cancelled appointment with Dr. ${appointments.doctor.name}`,
+          status: "CANCELLED",
         },
       });
 
+      // Always refund credits to patient and deduct from doctor
+      // Create credit transaction for patient (refund)
       await tx.creditTransaction.create({
         data: {
-          userId: appointments.doctorId,
+          userId: appointment.patientId,
+          amount: 2,
+          type: "APPOINTMENT_DEDUCTION",
+        },
+      });
+
+      // Create credit transaction for doctor (deduction)
+      await tx.creditTransaction.create({
+        data: {
+          userId: appointment.doctorId,
           amount: -2,
           type: "APPOINTMENT_DEDUCTION",
-          // description: `Refund for cancelled appointment with Dr. ${appointments.doctor.name}`,
         },
       });
 
+      // Update patient's credit balance (increment)
       await tx.user.update({
         where: {
-          id: appointments.patientId,
+          id: appointment.patientId,
         },
         data: {
-          credits: { increment: appointments.fee },
+          credits: {
+            increment: 2,
+          },
         },
       });
 
+      // Update doctor's credit balance (decrement)
       await tx.user.update({
         where: {
-          id: appointments.patientId,
+          id: appointment.doctorId,
         },
         data: {
-          credits: { decrement: 2 },
+          credits: {
+            decrement: 2,
+          },
         },
       });
     });
 
+    // Determine which path to revalidate based on user role
     if (user.role === "DOCTOR") {
       revalidatePath("/doctor");
-    }
-    if (user.role === "PATIENT") {
+    } else if (user.role === "PATIENT") {
       revalidatePath("/appointments");
     }
 

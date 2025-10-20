@@ -116,11 +116,12 @@ const AppointmentCard = ({ appointment, userRole }) => {
     const now = new Date();
     const appointmentTime = new Date(appointment.startTime);
     const appointmentEndTime = new Date(appointment.endTime);
-    return (
-      (appointmentTime.getTime() - now.getTime() <= 30 * 60 * 1000 &&
-        now > appointmentTime) ||
-      (now >= appointmentTime && now <= appointmentEndTime)
-    );
+    return true;
+    // return (
+    //   (appointmentTime.getTime() - now.getTime() <= 30 * 60 * 1000 &&
+    //     now > appointmentTime) ||
+    //   (now >= appointmentTime && now <= appointmentEndTime)
+    // );
   };
 
   const handleJoinVideoCall = async () => {
@@ -134,7 +135,7 @@ const AppointmentCard = ({ appointment, userRole }) => {
   useEffect(() => {
     if (tokenData?.success) {
       router.push(
-        `/video-call/sessionId=${tokenData.videoSessionId}&token=${tokenData.token}&appointmentId=${appointment.id}`
+        `/video-call?sessionId=${tokenData.videoSessionId}&token=${tokenData.token}&appointmentId=${appointment.id}`
       );
     }
   }, [tokenData, appointment.id]);
@@ -172,7 +173,7 @@ const AppointmentCard = ({ appointment, userRole }) => {
       toast.success("Appointment Canceled successfully");
       setOpen(false);
     }
-  }, [completeData]);
+  }, [cancelData]);
 
   return (
     <>

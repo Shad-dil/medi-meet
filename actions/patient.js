@@ -1,15 +1,18 @@
-"use server";
-import { auth } from "@clerk/nextjs/server";
 import { db } from "@/lib/prisma";
-import select from "select";
+import { auth } from "@clerk/nextjs/server";
 
+/**
+ * Get all appointments for the authenticated patient
+ */
 export async function getPatientAppointments() {
+  const { userId } = await auth();
+
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-    const patient = await db.user.findUnique({
+    const user = await db.user.findUnique({
       where: {
         clerkUserId: userId,
         role: "PATIENT",
@@ -19,12 +22,13 @@ export async function getPatientAppointments() {
       },
     });
 
-    if (!patient) {
+    if (!user) {
       throw new Error("Patient not found");
     }
+
     const appointments = await db.appointment.findMany({
       where: {
-        patientId: patient.id,
+        patientId: user.id,
       },
       include: {
         doctor: {
@@ -36,14 +40,14 @@ export async function getPatientAppointments() {
           },
         },
       },
+      orderBy: {
+        startTime: "asc",
+      },
     });
-
-    if (!appointments) {
-      throw new Error("No appointments found");
-    }
 
     return { appointments };
   } catch (error) {
-    throw new Error("Failed to fetch patient appointments: " + error.message);
+    console.error("Failed to get patient appointments:", error);
+    return { error: "Failed to fetch appointments" };
   }
 }

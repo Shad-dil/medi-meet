@@ -4,14 +4,14 @@ import { db } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
-export const getDoctorBySpeciality = async (specialty) => {
+export const getDoctorBySpeciality = async (doctorSpecialty) => {
   const { userId } = await auth();
   if (!userId) return false;
 
   try {
     const doctors = await db.User.findMany({
       where: {
-        specialty: specialty,
+        specialty: doctorSpecialty,
         role: "DOCTOR",
         verificationStatus: "VERIFIED",
       },
